@@ -1,0 +1,121 @@
+.Dd $Mdocdate: July 17 2018 $
+.Dt DRIST 1
+.Os
+.Sh NAME
+.Nm drist
+.Nd dumb remote installer shell tool, a remote deployment tool
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl p
+.Op Fl s Op Fl e Ar sudo|doas
+.Op Fl P Ar n
+.Ar HOST
+.Sh OPTIONS
+.Op Fl p
+use persistent SSH connections.
+This relies on the ControlMaster feature from
+.Xr ssh 1 .
+.br
+.Op Fl d
+do a dry-run.
+This will connect to the remote server to get its
+.Em HOSTNAME .
+.br
+.Op Fl s
+use a program to execute a command as root on the remote server.
+Defaults to sudo.
+.br
+.Op Fl e Ar binary
+program to use when executing commands as root.
+This flag is only useful when used with
+.Fl s .
+.br
+.Op Fl P Ar n
+specify a non-standard SSH port.
+Defaults to 22.
+.br
+.Sh DESCRIPTION
+.Nm
+is a tool to configure remote servers using
+.Xr ssh 1
+and
+.Xr rsync 1 .
+.Nm
+has been designed to be simple, so it may not offer all the features you want.
+.Pp
+.Nm
+looks for a set of special folders in the current working directory.
+It connects to
+.Ar HOST
+via ssh(1) and requests the remote
+.Em HOSTNAME
+by calling
+.Ql uname -n .
+Afterwards, it executes the following steps in order:
+.Bl -enum -offset indent -compact
+.It
+If folder
+.Ar files
+exists, its contents are copied to
+.Ar HOST
+using
+.Xr rsync 1 .
+.It
+If folder
+.Ar files- Ns Em HOSTNAME
+exists, its content are copied to
+.Ar HOST
+using
+.Xr rsync 1 .
+.It
+If folder
+.Ar absent
+exists, files inside it are deleted on
+.Ar HOST
+by filename.
+.It
+If folder
+.Ar absent- Ns Em HOSTNAME
+exists, files in it are deleted on
+.Ar HOST
+by filename.
+.It
+If file
+.Ar script
+exists, it is copied to
+.Ar HOST
+and executed there.
+.It
+If file
+.Ar script- Ns Em HOSTNAME
+exists, it is copied to
+.Ar HOST
+and executed there.
+.El
+.Pp
+The presence of each of the aforementioned files or folders is optional.
+.Pp
+All files are treated as relative to the root (/) folder on the
+.Ar HOST .
+.Pp
+.Nm
+does not handle file permissions and ownership.
+Those should be modified by the
+.Ar script
+file.
+.Sh EXIT
+.Ex -std drist
+.Sh SEE ALSO
+.Xr rsync 1
+.Xr ssh 1
+.Xr ssh_config 5
+.Sh Authors
+.An -nosplit
+The
+.Nm
+program was originally written by
+.An Solène Rapenne Aq Mt solene@perso.pw .
+.An -nosplit
+Additional modifications have been made by
+.An Bogdan Popa Aq Mt bogdan@defn.io .

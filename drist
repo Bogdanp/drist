@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DRY_RUN=0
+SUDO=0
+SUDO_BIN=sudo
+EXEC=""
+SSH_ONCE=0
+SSH_PORT=22
+
+usage() {
+    echo "$0 [-d] [-p] [-s [-e sudo|doas]] [-P n] HOST"
+    exit 1
+}
+
+while getopts dpse:P: arg; do
+    case ${arg} in
+        d) DRY_RUN=1 ;;
+        s) SUDO=1 ;;
+        e) SUDO_BIN="${OPTARG}" ;;
+        p) SSH_ONCE=1 ;;
+        P) SSH_PORT="${OPTARG}" ;;
+        *) usage ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+
+# Set the privilege escalation program.
+if [ "$SUDO" -eq 1 ]
+then
+    EXEC="$SUDO_BIN"
+fi
+
+SSH_PARAMS=(-p "$SSH_PORT")
+
+# Use ControlMaster to make connections persistent.
+if [ "$SSH_ONCE" -eq 1 ]
+then
+    SSH_PARAMS+=(-o "ControlMaster=auto" -o "ControlPath=/tmp/drist_ssh_%h_%p_%r.sock" -o "ControlPersist=1m")
+fi
+
+
+# Require the HOST parameter.
+if [ "$#" -ne 1 ]; then
+    usage
+else
+    HOST="$1"
+    # shellcheck disable=SC2029
+    if ! read -r HOSTNAME; then
+        echo "error: could not fetch hostname"
+        exit 2
+    fi < <(ssh "${SSH_PARAMS[@]}" "$HOST" "$EXEC uname -n")
+fi
+
+
+copy_files() {
+    SRC="$1"
+    DST="$2"  # this is the destination host
+
+    # -l = keep symlink / -D = special device
+    if [ -d "$SRC" ]
+    then
+        LIST=$(mktemp /tmp/drist-rsync.XXXXXXXXXX)
+        if [ -f "$LIST" ]
+        then
+            printf 'Copying files from folder "%s":\n' "$SRC"
+            find "$SRC" -type f | cut -d '/' -f 2- | tee "$LIST" | sed 's/^/  \//'
+
+            if [ "$DRY_RUN" -ne 1 ]
+            then
+                rsync -e "ssh ${SSH_PARAMS[*]}" --rsync-path="$EXEC rsync" -lD --files-from="$LIST" "$SRC/" "$DST":/
+            fi
+            rm "$LIST"
+        fi
+    fi
+}
+
+
+remote_script() {
+    SRC="$1"
+    DST="$2"  # this is the destination host
+
+    if [ -f "$SRC" ]
+    then
+        printf 'Executing file "%s":\n' "$SRC"
+
+        if [ "$DRY_RUN" -ne 1 ]
+        then
+            # shellcheck disable=SC2029 disable=SC2087
+            ssh "${SSH_PARAMS[@]}" "$DST" "DRIST=$(mktemp /tmp/drist.XXXXXXXXXXXX) && cat - > \$DRIST && chmod u+x \$DRIST && $EXEC \$DRIST ; rm \$DRIST" < "$SRC"
+        fi
+    fi
+}
+
+
+delete_files() {
+    SRC="$1"
+    DST="$2"
+
+    if [ -d "$SRC" ]
+    then
+        LIST=$(mktemp /tmp/drist-rsync.XXXXXXXXXX)
+        if [ -f "$LIST" ]
+        then
+            printf 'Removing files from folder "%s":\n' "$SRC"
+            find "$SRC" -type f | sed 's/"/\\&/' | \
+                awk -v path="$SRC" '{ printf "\"%s\" ",substr($0,length(path)+1)}' | \
+                tee "$LIST" | sed 's/^/  /'
+
+            if [ "$DRY_RUN" -ne 1 ]
+            then
+                # shellcheck disable=SC2029
+                test -s "$LIST" && ssh "${SSH_PARAMS[@]}" "$DST" "$EXEC rm $(cat "$LIST")"
+            fi
+            rm "$LIST"
+        fi
+    fi
+}
+
+copy_files "files" "$HOST"
+copy_files "files-$HOSTNAME" "$HOST"
+remote_script "script" "$HOST"
+remote_script "script-$HOSTNAME" "$HOST"
+delete_files "absent" "$HOST"
+delete_files "absent-$HOSTNAME" "$HOST"
+
+
+# Close socket if persistence is on.
+if [ "$SSH_ONCE" -eq 1 ]
+then
+    ssh "${SSH_PARAMS[@]}" -O exit -N "$HOST"
+fi
