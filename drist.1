@@ -1,15 +1,14 @@
-.Dd $Mdocdate: July 17 2018 $
+.Dd $Mdocdate: April 22 2019$
 .Dt DRIST 1
 .Os
 .Sh NAME
 .Nm drist
-.Nd dumb remote installer shell tool, a remote deployment tool
+.Nd a remote deployment tool
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
 .Op Fl p
 .Op Fl s Op Fl e Ar sudo|doas
-.Op Fl P Ar n
 .Ar HOST
 .Sh OPTIONS
 .Op Fl p
@@ -30,10 +29,6 @@ Defaults to sudo.
 program to use when executing commands as root.
 This flag is only useful when used with
 .Fl s .
-.br
-.Op Fl P Ar n
-specify a non-standard SSH port.
-Defaults to 22.
 .br
 .Sh DESCRIPTION
 .Nm

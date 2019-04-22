@@ -7,18 +7,16 @@ PREFIX ?= /usr/local
 BINDIR ?= ${PREFIX}/bin
 MANDIR ?= ${PREFIX}/share/man
 
-all:
-
+.PHONY: install
 install:
 	@echo installing executable to "${DESTDIR}${PREFIX}/bin"
 	@install "${BIN}" "${DESTDIR}${BINDIR}/${BIN}"
 	@echo installing manual page to ${DESTDIR}${MANDIR}/man1
 	@install "${BIN}.1" "${DESTDIR}${MANDIR}/man1/${BIN}.1"
 
+.PHONY: uninstall
 uninstall:
 	@echo removing executable file from "${DESTDIR}${PREFIX}/bin"
 	@rm -f "${DESTDIR}${BINDIR}/${BIN}"
 	@echo removing manual page from ${DESTDIR}${MANDIR}/man1
 	@rm -f ${DESTDIR}${MANDIR}/man1/${BIN}.1
-
-.PHONY: all install uninstall clean

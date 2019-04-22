@@ -7,7 +7,6 @@ SUDO=0
 SUDO_BIN=sudo
 EXEC=""
 SSH_ONCE=0
-SSH_PORT=22
 
 usage() {
     echo "$0 [-d] [-p] [-s [-e sudo|doas]] [-P n] HOST"
@@ -20,7 +19,6 @@ while getopts dpse:P: arg; do
         s) SUDO=1 ;;
         e) SUDO_BIN="${OPTARG}" ;;
         p) SSH_ONCE=1 ;;
-        P) SSH_PORT="${OPTARG}" ;;
         *) usage ;;
     esac
 done
@@ -33,7 +31,7 @@ then
     EXEC="$SUDO_BIN"
 fi
 
-SSH_PARAMS=(-p "$SSH_PORT")
+SSH_PARAMS=()
 
 # Use ControlMaster to make connections persistent.
 if [ "$SSH_ONCE" -eq 1 ]
