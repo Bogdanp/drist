@@ -7,15 +7,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
-.Op Fl p
 .Op Fl s Op Fl e Ar sudo|doas
 .Ar HOST
 .Sh OPTIONS
-.Op Fl p
-use persistent SSH connections.
-This relies on the ControlMaster feature from
-.Xr ssh 1 .
-.br
 .Op Fl d
 do a dry-run.
 This will connect to the remote server to get its

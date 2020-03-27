@@ -6,10 +6,13 @@ DRY_RUN=0
 SUDO=0
 SUDO_BIN=sudo
 EXEC=""
-SSH_ONCE=0
+
+log() {
+    printf "[%s] %s\n" "$(date)" "$@"
+}
 
 usage() {
-    echo "$0 [-d] [-p] [-s [-e sudo|doas]] [-P n] HOST"
+    echo "$0 [-d] [-s [-e sudo|doas]] [-P n] HOST"
     exit 1
 }
 
@@ -18,7 +21,7 @@ while getopts dpse:P: arg; do
         d) DRY_RUN=1 ;;
         s) SUDO=1 ;;
         e) SUDO_BIN="${OPTARG}" ;;
-        p) SSH_ONCE=1 ;;
+        p) ;; # for backwards-compatibility
         *) usage ;;
     esac
 done
@@ -31,13 +34,15 @@ then
     EXEC="$SUDO_BIN"
 fi
 
-SSH_PARAMS=(-q)
+# Keep a persistent SSH connection open.
+SSH_PARAMS=(-q -o "ControlMaster=auto" -o "ControlPath=/tmp/drist_ssh_%h_%p_%r.sock" -o "ControlPersist=1m")
 
-# Use ControlMaster to make connections persistent.
-if [ "$SSH_ONCE" -eq 1 ]
-then
-    SSH_PARAMS+=(-q -o "ControlMaster=auto" -o "ControlPath=/tmp/drist_ssh_%h_%p_%r.sock" -o "ControlPersist=1m")
-fi
+cleanup() {
+    log "Closing persistent SSH connection..."
+    ssh "${SSH_PARAMS[@]}" -O exit -N "$HOST"
+}
+
+trap cleanup EXIT
 
 
 # Require the HOST parameter.
@@ -63,7 +68,7 @@ copy_files() {
         LIST=$(mktemp /tmp/drist-rsync.XXXXXXXXXX)
         if [ -f "$LIST" ]
         then
-            printf 'Copying files from folder "%s":\n' "$SRC"
+            log "Copying files from $SRC..."
             find "$SRC" -type f | cut -d '/' -f 2- | tee "$LIST" | sed 's/^/  \//'
 
             if [ "$DRY_RUN" -ne 1 ]
@@ -82,7 +87,7 @@ remote_script() {
 
     if [ -f "$SRC" ]
     then
-        printf 'Executing file "%s":\n' "$SRC"
+        log "Executing $SRC..."
 
         if [ "$DRY_RUN" -ne 1 ]
         then
@@ -102,7 +107,7 @@ delete_files() {
         LIST=$(mktemp /tmp/drist-rsync.XXXXXXXXXX)
         if [ -f "$LIST" ]
         then
-            printf 'Removing files from folder "%s":\n' "$SRC"
+            log "Removing files from $SRC..."
             find "$SRC" -type f | sed 's/"/\\&/' | \
                 awk -v path="$SRC" '{ printf "\"%s\" ",substr($0,length(path)+1)}' | \
                 tee "$LIST" | sed 's/^/  /'
@@ -123,10 +128,3 @@ remote_script "script" "$HOST"
 remote_script "script-$HOSTNAME" "$HOST"
 delete_files "absent" "$HOST"
 delete_files "absent-$HOSTNAME" "$HOST"
-
-
-# Close socket if persistence is on.
-if [ "$SSH_ONCE" -eq 1 ]
-then
-    ssh "${SSH_PARAMS[@]}" -O exit -N "$HOST"
-fi
