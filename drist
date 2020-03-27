@@ -31,12 +31,12 @@ then
     EXEC="$SUDO_BIN"
 fi
 
-SSH_PARAMS=()
+SSH_PARAMS=(-q)
 
 # Use ControlMaster to make connections persistent.
 if [ "$SSH_ONCE" -eq 1 ]
 then
-    SSH_PARAMS+=(-o "ControlMaster=auto" -o "ControlPath=/tmp/drist_ssh_%h_%p_%r.sock" -o "ControlPersist=1m")
+    SSH_PARAMS+=(-q -o "ControlMaster=auto" -o "ControlPath=/tmp/drist_ssh_%h_%p_%r.sock" -o "ControlPersist=1m")
 fi
 
 
