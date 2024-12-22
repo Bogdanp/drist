@@ -60,19 +60,16 @@ fi
 
 copy_files() {
     SRC="$1"
-    DST="$2"  # this is the destination host
+    DST="$2"
 
-    # -l = keep symlink / -D = special device
-    if [ -d "$SRC" ]
-    then
+    if [ -d "$SRC" ]; then
         LIST=$(mktemp /tmp/drist-rsync.XXXXXXXXXX)
-        if [ -f "$LIST" ]
-        then
+        if [ -f "$LIST" ]; then
             log "Copying files from $SRC..."
             find "$SRC" -type f | cut -d '/' -f 2- | tee "$LIST" | sed 's/^/  \//'
 
-            if [ "$DRY_RUN" -ne 1 ]
-            then
+            if [ "$DRY_RUN" -ne 1 ]; then
+                # -l = keep symlink / -D = special device
                 rsync -e "ssh ${SSH_PARAMS[*]}" --rsync-path="$EXEC rsync" -lD --files-from="$LIST" "$SRC/" "$DST":/
             fi
             rm "$LIST"
@@ -83,14 +80,12 @@ copy_files() {
 
 remote_script() {
     SRC="$1"
-    DST="$2"  # this is the destination host
+    DST="$2"
 
-    if [ -f "$SRC" ]
-    then
+    if [ -f "$SRC" ]; then
         log "Executing $SRC..."
 
-        if [ "$DRY_RUN" -ne 1 ]
-        then
+        if [ "$DRY_RUN" -ne 1 ]; then
             # shellcheck disable=SC2029 disable=SC2087
             ssh "${SSH_PARAMS[@]}" "$DST" "DRIST=$(mktemp /tmp/drist.XXXXXXXXXXXX) && cat - > \$DRIST && chmod u+x \$DRIST && $EXEC \$DRIST ; rm \$DRIST" < "$SRC"
         fi
@@ -102,20 +97,17 @@ delete_files() {
     SRC="$1"
     DST="$2"
 
-    if [ -d "$SRC" ]
-    then
+    if [ -d "$SRC" ]; then
         LIST=$(mktemp /tmp/drist-rsync.XXXXXXXXXX)
-        if [ -f "$LIST" ]
-        then
+        if [ -f "$LIST" ]; then
             log "Removing files from $SRC..."
             find "$SRC" -type f | sed 's/"/\\&/' | \
-                awk -v path="$SRC" '{ printf "\"%s\" ",substr($0,length(path)+1)}' | \
+                awk -v path="$SRC" '{ printf "\"%s\" ",substr($0,length(path)+1) }' | \
                 tee "$LIST" | sed 's/^/  /'
 
-            if [ "$DRY_RUN" -ne 1 ]
-            then
+            if [ "$DRY_RUN" -ne 1 ]; then
                 # shellcheck disable=SC2029
-                test -s "$LIST" && ssh "${SSH_PARAMS[@]}" "$DST" "$EXEC rm $(cat "$LIST")"
+                test -s "$LIST" && ssh "${SSH_PARAMS[@]}" "$DST" "$EXEC rm -f $(cat "$LIST")"
             fi
             rm "$LIST"
         fi
